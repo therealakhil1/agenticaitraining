@@ -1,58 +1,12 @@
 import json
-from typing import List, Optional
+from http.client import HTTPException
+from typing import Union
 
-from fastapi import FastAPI, Body
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, Body, Request
+from models.interview_status_model import InterviewStatusRequest
+from models.schedule_interview_model import DialogflowWebhookResponse
 
 app = FastAPI(title="Interview Agent API")
-
-class Text(BaseModel):
-    text: List[str]
-
-class FulfillmentMessage(BaseModel):
-    text: Text
-
-class QueryParameters(BaseModel):
-    jobID: List[str]
-    user_email: str
-
-class OutputContextParameters(BaseModel):
-    no_input: Optional[float] = Field(None, alias="no-input")
-    no_match: Optional[float] = Field(None, alias="no-match")
-    jobID: Optional[List[str]] = None
-    jobID_original: Optional[List[str]] = Field(None, alias="jobID.original")
-    user_email: Optional[str] = None
-    user_email_original: Optional[str] = Field(None, alias="user_email.original")
-
-class OutputContext(BaseModel):
-    name: str
-    lifespanCount: Optional[int] = None
-    parameters: OutputContextParameters
-
-class Intent(BaseModel):
-    name: str
-    displayName: str
-
-class QueryResult(BaseModel):
-    queryText: str
-    action: str
-    parameters: QueryParameters
-    allRequiredParamsPresent: bool
-    fulfillmentMessages: List[FulfillmentMessage]
-    outputContexts: List[OutputContext]
-    intent: Intent
-    intentDetectionConfidence: float
-    languageCode: str
-
-class OriginalDetectIntentRequest(BaseModel):
-    source: str
-    payload: dict
-
-class DialogflowRequest(BaseModel):
-    responseId: str
-    queryResult: QueryResult
-    originalDetectIntentRequest: OriginalDetectIntentRequest
-    session: str
 
 #TODO: if you want to do more replace this dict with a database or some shit, and extend functionality of actually
 # taking interviews.
@@ -79,14 +33,13 @@ def interview_status(request):
             break
 
     is_qualified_to_interview = interview_status_to_user_map.get(email, {jobid:False}).get(jobid, False)
-
     fulfillment_text = "Yes you're profile was screened for an interview round" if is_qualified_to_interview else "No you're profile was not screened for an interview round"
-
     output_context =str(request.queryResult.outputContexts[0].name)
 
     payload = {
         "fulfillmentText": fulfillment_text
     }
+
     if is_qualified_to_interview:
         payload["outputContexts"] = [{
             "name": output_context,
@@ -107,23 +60,31 @@ def interview_status(request):
 
 
 def schedule_interview(request):
-    print('bye')
-    # print(request)
+    print(request)
 
 def user_job_offer(request):
     pass
 
 
-intent_name_to_serve_function_mapping = {
-    "Ask about interview": interview_status,
-    'Confirm interview dates': schedule_interview,
-    'Job offer': user_job_offer
-}
+# intent_name_to_serve_function_mapping = {
+#     "Ask about interview": interview_status,
+#     'Confirm interview dates': schedule_interview,
+#     'Job offer': user_job_offer
+# }
 
 @app.post("/webhook")
-async def root(request: DialogflowRequest = Body(...)):
-    print('hi')
-    return intent_name_to_serve_function_mapping.get(request.queryResult.intent.displayName)(request)
+async def root(req: Request):
+    body = await req.json()
+    intent = body["queryResult"]["intent"]["displayName"]
+    if intent == "Ask about interview":
+        parsed = InterviewStatusRequest.parse_obj(body)
+        return interview_status(parsed)
+    elif intent == "Confirm interview dates":
+        parsed = DialogflowWebhookResponse.parse_obj(body)
+        return schedule_interview(parsed)
+    else:
+        raise HTTPException(400, "Unknown intent")
+
 
 
 
