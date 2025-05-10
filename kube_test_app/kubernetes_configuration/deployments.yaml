@@ -20,6 +20,13 @@ spec:
         app: test-app-pod
     spec:
       containers:
+      - name: mysql-db
+        image: mysql:latest
+        ports:
+          - containerPort: 8080
+        env:
+          - name: MYSQL_ALLOW_EMPTY_PASSWORD
+            value: "yes"
       - name: kube-test-app
         image: akhilspalli/kube_test_app:latest
         imagePullPolicy: Always
