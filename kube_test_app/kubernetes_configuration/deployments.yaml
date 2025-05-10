@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-test-app-deployment
+  labels:
+    app: test-app-deployment
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: test-app-pod
+  template:
+    metadata:
+      labels:
+        app: test-app-pod
+    spec:
+      containers:
+      - name: kube-test-app
+        image: akhilspalli/kube_test_app:latest
+        ports:
+        - containerPort: 8000
+
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20
