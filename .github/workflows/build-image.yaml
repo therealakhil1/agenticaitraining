@@ -27,4 +27,4 @@ jobs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: akhilspalli/cloud_run_trial:latest
+        tags: akhilspalli/kube_test_app:latest
