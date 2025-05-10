@@ -22,6 +22,7 @@ spec:
       containers:
       - name: kube-test-app
         image: akhilspalli/kube_test_app:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
 
